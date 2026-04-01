@@ -321,10 +321,14 @@ window.PsycheApp.Sphere3D = (function() {
     }
   }
 
-  // === NEW: Activation Wave ===
+  // === Activation Wave - Optimized ===
   function triggerActivationWave(layerIndex) {
+    // Clean up existing wave properly
     if (activationWave) {
+      activationWave.geometry.dispose();
+      activationWave.material.dispose();
       scene.remove(activationWave);
+      activationWave = null;
     }
     
     const startRadius = 0.6 + (layerIndex / (nodeObjects.length - 1 || 1)) * (3.2 - 0.6);
@@ -340,6 +344,7 @@ window.PsycheApp.Sphere3D = (function() {
     
     activationWave = new THREE.Mesh(geometry, material);
     activationWave.userData = {
+      initialRadius: startRadius, // Store for scaling calculation
       startRadius,
       maxRadius: 5,
       speed: 0.05,
@@ -526,24 +531,63 @@ window.PsycheApp.Sphere3D = (function() {
   }
 
   function clearSpheres() {
+    // Proper disposal to prevent memory leaks
+    const disposeObject = (obj) => {
+      if (obj.geometry) {
+        obj.geometry.dispose();
+        obj.geometry = null;
+      }
+      if (obj.material) {
+        if (Array.isArray(obj.material)) {
+          obj.material.forEach(mat => disposeMaterial(mat));
+        } else {
+          disposeMaterial(obj.material);
+        }
+        obj.material = null;
+      }
+      if (obj.texture) {
+        obj.texture.dispose();
+        obj.texture = null;
+      }
+    };
+
+    const disposeMaterial = (mat) => {
+      if (mat.map) mat.map.dispose();
+      if (mat.lightMap) mat.lightMap.dispose();
+      if (mat.bumpMap) mat.bumpMap.dispose();
+      if (mat.normalMap) mat.normalMap.dispose();
+      if (mat.specularMap) mat.specularMap.dispose();
+      if (mat.envMap) mat.envMap.dispose();
+      if (mat.alphaMap) mat.alphaMap.dispose();
+      mat.dispose();
+    };
+
     while (sphereGroup.children.length) {
       const c = sphereGroup.children[0];
-      c.traverse(child => {
-        if (child.geometry) child.geometry.dispose();
-        if (child.material) {
-          if (child.material.map) child.material.map.dispose();
-          child.material.dispose();
-        }
-      });
+      c.traverse(disposeObject);
       sphereGroup.remove(c);
     }
+    
+    // Clear resonance group
+    if (resonanceGroup) {
+      resonanceGroup.traverse(disposeObject);
+      sphereGroup.remove(resonanceGroup);
+      resonanceGroup = null;
+      resonanceObjects = [];
+      resonanceNodeObjects = [];
+    }
+    
+    // Reset arrays
     nodeObjects = [];
     labelSprites = [];
     dimableObjects = [];
     spotlightActive = false;
-    if (resonanceGroup) {
-      sphereGroup.remove(resonanceGroup);
-      resonanceGroup = null;
+    
+    // Clean up activation wave
+    if (activationWave) {
+      disposeObject(activationWave);
+      scene.remove(activationWave);
+      activationWave = null;
     }
   }
 
@@ -852,49 +896,53 @@ window.PsycheApp.Sphere3D = (function() {
 
   function animate() {
     animFrame = requestAnimationFrame(animate);
+    
+    // Early exit optimization: skip rendering if view is hidden
+    if (!container || container.offsetParent === null) return;
+    
     const time = performance.now();
     
-    // Smooth camera
+    // Smooth camera interpolation
     theta += (targetTheta - theta) * DAMPING;
     phi += (targetPhi - phi) * DAMPING;
     radius += (targetRadius - radius) * DAMPING;
     updateCameraPosition();
     
-    // Atmosphere adjustments
+    // Atmosphere-based rotation speed
     let rotSpeed = 0.002;
     if (currentAtmosphere === 'anxiety') rotSpeed = 0.015;
-    if (currentAtmosphere === 'depression') rotSpeed = 0.0004;
-    if (currentAtmosphere === 'mystical') rotSpeed = 0.0008;
+    else if (currentAtmosphere === 'depression') rotSpeed = 0.0004;
+    else if (currentAtmosphere === 'mystical') rotSpeed = 0.0008;
 
-    // Auto-rotate
+    // Auto-rotate only when not dragging
     if (autoRotate && !isDragging) targetTheta += rotSpeed;
     
-    // Rotate particles
+    // Rotate background particles
     if (particleSystem) particleSystem.rotation.y += (rotSpeed * 0.1);
-    // === ANIMATE GOD RAYS === (disabled - bubble effects removed)
-    // godRays and atmosphereParticles are not created
     
-    // === ANIMATE FLOW PARTICLES === (disabled - bubble effects removed)
-    // flowParticles array is kept empty
-    
-    // === ANIMATE CONNECTION LINES ===
-    connectionLines.forEach(line => {
-      const pulse = Math.sin(time * 0.002 + line.userData.phase) * 0.5 + 0.5;
+    // Animate connection lines with optimized sine calculation
+    const lineTime = time * 0.002;
+    for (let i = 0; i < connectionLines.length; i++) {
+      const line = connectionLines[i];
+      const pulse = Math.sin(lineTime + line.userData.phase) * 0.5 + 0.5;
       line.material.opacity = line.userData.baseOpacity * (0.5 + pulse * 0.5);
-    });
+    }
     
-    // === ANIMATE ACTIVATION WAVE ===
+    // Animate activation wave without geometry recreation
     if (activationWave) {
       const wave = activationWave.userData;
       wave.startRadius += wave.speed;
       wave.opacity -= 0.015;
       
-      activationWave.geometry.dispose();
-      activationWave.geometry = new THREE.SphereGeometry(wave.startRadius, 32, 32);
+      // Scale instead of recreating geometry for better performance
+      const scale = wave.startRadius / wave.initialRadius;
+      activationWave.scale.setScalar(scale);
       activationWave.material.opacity = wave.opacity;
       
       if (wave.opacity <= 0 || wave.startRadius >= wave.maxRadius) {
         scene.remove(activationWave);
+        activationWave.geometry.dispose();
+        activationWave.material.dispose();
         activationWave = null;
       }
     }
