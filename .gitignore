@@ -1,14 +1,69 @@
-/assets
-/iphone_guide.md
-/psyche_master_edition.zip
-/psyche_master_edition_final.zip
-/psyche_master_edition_final_v2.zip
-/psyche_master_edition_hardened.zip
-/psyche_master_edition_ultimate.zip
-/psyche_master_edition_ultimate_hardened_final.zip
-/psyche_master_edition_ultimate_hardened_master.zip
-/psyche_master_edition_ultimate_hardened_v2.zip
-/psyche_master_edition_v2.zip
-/README_V2.txt
-/README_V3_FINAL.txt
-/README_V4_FINAL.txt
+```
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+*.o
+*.obj
+dist/
+build/
+target/
+*.class
+*.exe
+*.dll
+*.so
+*.a
+*.out
+
+# Dependencies
+node_modules/
+venv/
+.venv/
+.env
+.env.local
+.env.*
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Compressed files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
+```
