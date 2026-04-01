@@ -1,0 +1,153 @@
+# Performance Audit Report: Psyche Application
+
+## Executive Summary
+
+The Psyche application is a sophisticated 3D visualization tool for psychological frameworks with rich interactive elements. While functional, several critical performance bottlenecks and architectural inefficiencies were identified that impact runtime performance, memory usage, and maintainability.
+
+---
+
+## 1. CRITICAL PERFORMANCE ISSUES (High Impact)
+
+### 1.1 Memory Leaks in Three.js Rendering Loop
+**Location:** `/workspace/js/sphere3d.js` lines 887-900, 528-548
+
+**Problem:**
+- `activationWave.geometry.dispose()` is called but the OLD geometry reference is lost before disposal
+- Materials are created repeatedly without disposal in animation loop
+- `clearSpheres()` doesn't dispose of textures or handle all material types properly
+
+**Impact:** Memory grows continuously during framework switches, causing eventual browser slowdown/crash
+
+**Fix Priority:** 🔴 CRITICAL
+
+### 1.2 Inefficient DOM Manipulation in Views
+**Location:** `/workspace/js/views-explore.js` lines 19-43, 82-96, 118-143
+
+**Problems:**
+- Entire view re-rendered on every case study tab switch (line 148: `render()`)
+- Inline styles computed dynamically instead of using CSS classes
+- Event listeners attached after innerHTML assignment (separate pass)
+- No debouncing/throttling on animations
+
+**Impact:** Janky transitions, unnecessary GC pressure, poor perceived performance
+
+**Fix Priority:** 🟠 HIGH
+
+### 1.3 Animation Frame Overload
+**Location:** `/workspace/js/sphere3d.js` lines 853-1000+
+
+**Problems:**
+- Single monolithic `animate()` function does too much work per frame
+- No early-exit optimization when scene is hidden
+- Geometry recreation in render loop (line 893: `new THREE.SphereGeometry`)
+- No LOD (Level of Detail) based on camera distance
+
+**Impact:** Dropped frames on lower-end devices, excessive battery drain
+
+**Fix Priority:** 🟠 HIGH
+
+### 1.4 Redundant Data Processing
+**Location:** `/workspace/js/app.js`, `/workspace/js/views-explore.js`
+
+**Problems:**
+- Data mapped/filtered repeatedly on each render
+- No memoization of expensive computations
+- Template strings rebuilt from scratch each time
+
+**Impact:** Wasted CPU cycles, especially noticeable on mobile
+
+**Fix Priority:** 🟡 MEDIUM-HIGH
+
+---
+
+## 2. MODERATE ISSUES (Medium Impact)
+
+### 2.1 Event Listener Proliferation
+**Location:** Multiple files
+
+**Problems:**
+- Individual event listeners for each card/node instead of event delegation
+- Mouse enter/leave handlers defined inline (views-explore.js:196-201)
+- No cleanup when views are switched
+
+**Impact:** Memory bloat, potential listener leaks
+
+### 2.2 CSS Performance Anti-patterns
+**Location:** `/workspace/css/main.css`
+
+**Problems:**
+- Excessive use of `backdrop-filter: blur()` (expensive on GPU)
+- Many animations using `transform` but some still using layout-triggering properties
+- Large CSS file (1961 lines) with unused rules
+
+**Impact:** Slower paint times, jank on scroll
+
+### 2.3 Blocking Operations
+**Location:** `/workspace/js/app.js`
+
+**Problems:**
+- Synchronous data loading blocks initial render
+- No progressive enhancement strategy
+- All frameworks loaded upfront regardless of visibility
+
+**Impact:** Slow Time to Interactive (TTI)
+
+---
+
+## 3. ARCHITECTURAL CONCERNS
+
+### 3.1 Tight Coupling
+- Direct DOM manipulation scattered across modules
+- Global state (`window.PsycheApp`) makes testing difficult
+- No clear separation between data, logic, and presentation
+
+### 3.2 Missing Optimization Patterns
+- No virtual scrolling for long lists
+- No lazy loading for off-screen content
+- No Web Workers for heavy computations
+- No service worker for caching
+
+---
+
+## 4. RECOMMENDED FIXES (Prioritized)
+
+### Phase 1: Critical Fixes (Week 1)
+1. Fix Three.js memory leaks
+2. Implement event delegation
+3. Add early-exit in animation loop
+4. Optimize DOM updates with document fragments
+
+### Phase 2: High-Impact Optimizations (Week 2)
+1. Refactor views to use incremental DOM updates
+2. Implement CSS class-based styling instead of inline
+3. Add LOD system for 3D objects
+4. Memoize expensive computations
+
+### Phase 3: Architectural Improvements (Week 3-4)
+1. Introduce state management pattern
+2. Implement lazy loading
+3. Add Web Worker for data processing
+4. Optimize asset loading strategy
+
+---
+
+## 5. METRICS TO TRACK
+
+- **Memory Usage:** Should remain stable (<50MB growth over 10min session)
+- **Frame Rate:** Maintain 60fps on desktop, 30fps minimum on mobile
+- **Time to Interactive:** <3 seconds on 3G connection
+- **First Contentful Paint:** <1.5 seconds
+- **Event Listener Count:** Should not grow indefinitely
+
+---
+
+## 6. BROWSER COMPATIBILITY NOTES
+
+- `backdrop-filter` has poor support on Firefox Android
+- Three.js performance varies significantly by GPU
+- Consider fallback for devices with `devicePixelRatio > 2`
+
+---
+
+*Generated by Senior Performance Engineer Analysis*
+*Date: 2024*
