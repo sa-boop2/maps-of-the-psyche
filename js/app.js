@@ -316,7 +316,9 @@
 
     container.addEventListener('wheel', (e) => {
       e.preventDefault();
-      container.scrollLeft += (e.deltaY || e.deltaX) * 0.5;
+      // Intelligently use larger delta (works for both mouse wheel and trackpad swipes)
+      const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+      container.scrollLeft += delta * 1.5;
     }, { passive: false });
   }
 
@@ -327,7 +329,9 @@
 
     container.addEventListener('wheel', (e) => {
       e.preventDefault();
-      container.scrollLeft += (e.deltaY || e.deltaX) * 0.5;
+      // Intelligently use larger delta (works for both mouse wheel and trackpad swipes)
+      const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+      container.scrollLeft += delta * 1.5;
     }, { passive: false });
   }
 
