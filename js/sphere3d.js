@@ -93,11 +93,9 @@ window.PsycheApp.Sphere3D = (function() {
     // Particles background
     createParticles();
     
-    // Atmosphere particle system
-    createAtmosphereParticles();
-    
-    // God rays
-    createGodRays();
+    // Atmosphere and god-ray effects removed for clarity (user request)
+    // createAtmosphereParticles();
+    // createGodRays();
 
     // Events
     canvas.addEventListener('mousedown', onMouseDown);
@@ -471,8 +469,8 @@ window.PsycheApp.Sphere3D = (function() {
     // Create connection lines between nodes
     createConnectionLines();
     
-    // Create flow particles for active framework
-    createFlowParticles();
+    // Flow particle effects disabled (white bubble effects removed)
+    // createFlowParticles();
     
     return { nodes: builtNodes, labels: builtLabels, dimable: builtDimable };
   }

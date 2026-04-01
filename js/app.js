@@ -65,6 +65,7 @@
     buildFrameworkTabs();
     buildViewTabs();
     bindViewTabsMouseWheel();
+    bindFrameworkTabsMouseWheel();
     bindTraditionFilter();
     bindMapModeToggle();
     bindUtilityButtons();
@@ -323,6 +324,20 @@
         : (currentIndex - 1 + navigableViews.length) % navigableViews.length;
       setView(navigableViews[nextIndex].id);
       App.Sound?.playUIClick();
+    }, { passive: false });
+  }
+
+  // ── FRAMEWORK TABS HORIZONTAL SCROLL WITH MOUSE WHEEL ──
+  function bindFrameworkTabsMouseWheel() {
+    const container = document.getElementById('framework-tabs');
+    if (!container) return;
+
+    // Translate vertical wheel to horizontal scroll for comfortable navigation
+    container.addEventListener('wheel', (e) => {
+      // Let horizontal wheel behave naturally
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      container.scrollLeft += e.deltaY;
     }, { passive: false });
   }
 

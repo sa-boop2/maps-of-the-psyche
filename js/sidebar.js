@@ -24,7 +24,8 @@ window.PsycheApp.Sidebar = (function() {
     contentEl.innerHTML = buildContent(data);
     sidebarEl.classList.remove('hidden');
     isOpen = true;
-    // Bind section toggles
+
+    // Bind section toggles (expand/collapse)
     contentEl.querySelectorAll('.sb-section-header').forEach(h => {
       h.addEventListener('click', () => {
         h.classList.toggle('open');
@@ -32,7 +33,8 @@ window.PsycheApp.Sidebar = (function() {
         if (body) body.classList.toggle('open');
       });
     });
-    // Bind accordion toggles
+
+    // Bind accordion toggles (for lists and experiments)
     contentEl.querySelectorAll('.js-accordion-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         btn.classList.toggle('active');
@@ -46,7 +48,50 @@ window.PsycheApp.Sidebar = (function() {
         }
       });
     });
-    // Auto-open first two sections
+
+    // Bind CBT form interactions if present
+    const cbtForm = contentEl.querySelector('.cbt-form');
+    if (cbtForm) {
+      // Populate with last-saved draft if available
+      try {
+        const saved = JSON.parse(localStorage.getItem('psyche-cbt-last') || 'null');
+        if (saved) {
+          Object.keys(saved).forEach(k => {
+            const el = cbtForm.querySelector(`[name="${k}"]`);
+            if (el) el.value = saved[k];
+          });
+        }
+      } catch (e) { /* ignore */ }
+
+      cbtForm.addEventListener('submit', (ev) => {
+        ev.preventDefault();
+        const summary = handleCbtForm(cbtForm);
+        const resultEl = contentEl.querySelector('.cbt-result');
+        if (resultEl) resultEl.innerHTML = summary;
+        try { localStorage.setItem('psyche-cbt-last', JSON.stringify(Object.fromEntries(new FormData(cbtForm)))); } catch (e) {}
+      });
+
+      // Quick copy button
+      const copyBtn = contentEl.querySelector('.cbt-copy');
+      if (copyBtn) copyBtn.addEventListener('click', () => {
+        const text = handleCbtForm(cbtForm, true);
+        navigator.clipboard?.writeText(text).then(() => {
+          copyBtn.textContent = 'Copied ✓';
+          setTimeout(() => copyBtn.textContent = 'Copy', 1500);
+        }).catch(() => {});
+      });
+    }
+
+    // Distortion toggles (show/hide examples)
+    contentEl.querySelectorAll('.cbt-distortion-toggle').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.nextElementSibling;
+        if (target) target.classList.toggle('open');
+        btn.classList.toggle('expanded');
+      });
+    });
+
+    // Auto-open first two sections for quick access
     const headers = contentEl.querySelectorAll('.sb-section-header');
     headers.forEach((h, i) => {
       if (i < 2) { h.classList.add('open'); h.nextElementSibling?.classList.add('open'); }
@@ -102,7 +147,87 @@ window.PsycheApp.Sidebar = (function() {
         `<div class="sb-crossref" data-fw="${cr.frameworkId}" data-layer="${cr.layerIdx}"><strong>${esc(cr.frameworkName)}:</strong> ${esc(cr.layerName)}</div>`
       ).join(''));
     }
+
+    // Append CBT Toolkit as an actionable tools section (not a framework)
+    html += cbtSection();
+
     return html;
+  }
+
+  function section(title, body) {
+    return `<div class="sb-section"><div class="sb-section-header">${esc(title)}</div><div class="sb-section-body">${body}</div></div>`;
+  }
+
+  // --- CBT Toolkit HTML ---
+  function cbtSection() {
+    return `
+      <div class="sb-section">
+        <div class="sb-section-header">CBT Toolkit</div>
+        <div class="sb-section-body">
+          <p style="margin-bottom:8px; color:var(--text-secondary);">Actionable tools from Cognitive Behavioral Therapy — quick, practical, and structured. Use the form below as a Thought Record to move from automatic reactions to intentional experiments.</p>
+
+          <form class="cbt-form" style="display:flex;flex-direction:column;gap:8px;">
+            <label style="font-size:0.78rem;color:var(--text-dim);">Situation (brief)</label>
+            <input name="situation" placeholder="Where and when did this happen?" style="padding:8px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);" />
+
+            <label style="font-size:0.78rem;color:var(--text-dim);">Emotion(s) & Intensity (0-100)</label>
+            <input name="emotion" placeholder="e.g., Anxiety 70%" style="padding:8px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);" />
+
+            <label style="font-size:0.78rem;color:var(--text-dim);">Automatic Thought</label>
+            <input name="thought" placeholder="The immediate thought that popped up" style="padding:8px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);" />
+
+            <label style="font-size:0.78rem;color:var(--text-dim);">Evidence FOR the thought</label>
+            <input name="evidenceFor" placeholder="Facts that support the thought" style="padding:8px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);" />
+
+            <label style="font-size:0.78rem;color:var(--text-dim);">Evidence AGAINST the thought</label>
+            <input name="evidenceAgainst" placeholder="Facts that contradict the thought" style="padding:8px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);" />
+
+            <label style="font-size:0.78rem;color:var(--text-dim);">Alternative/Balanced Thought</label>
+            <input name="alternative" placeholder="A kinder, balanced reinterpretation" style="padding:8px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);" />
+
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button type="submit" class="js-accordion-btn" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--gold);color:var(--bg-primary);cursor:pointer;">Save & Summarize</button>
+              <button type="button" class="cbt-copy" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;">Copy</button>
+            </div>
+
+            <div class="cbt-result" style="margin-top:8px;font-size:0.82rem;color:var(--text-secondary);"></div>
+          </form>
+
+          <div style="margin-top:12px;">
+            <div style="font-weight:600;color:var(--gold);font-size:0.78rem;margin-bottom:6px;">Common Cognitive Distortions</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div>
+                <button class="cbt-distortion-toggle" style="background:transparent;border:1px solid var(--border);padding:8px;border-radius:8px;width:100%;text-align:left;cursor:pointer;">All-or-Nothing Thinking</button>
+                <div class="cbt-distortion-body" style="max-height:0;overflow:hidden;transition:max-height 0.35s;">Seeing things in black-or-white terms. Example: "If I'm not perfect, I'm a failure." Antidote: Look for the middle ground.</div>
+              </div>
+              <div>
+                <button class="cbt-distortion-toggle" style="background:transparent;border:1px solid var(--border);padding:8px;border-radius:8px;width:100%;text-align:left;cursor:pointer;">Catastrophizing</button>
+                <div class="cbt-distortion-body" style="max-height:0;overflow:hidden;transition:max-height 0.35s;">Expecting the worst-case scenario. Example: "I'll never recover." Antidote: "What's the realistic outcome?"</div>
+              </div>
+              <div>
+                <button class="cbt-distortion-toggle" style="background:transparent;border:1px solid var(--border);padding:8px;border-radius:8px;width:100%;text-align:left;cursor:pointer;">Mind Reading</button>
+                <div class="cbt-distortion-body" style="max-height:0;overflow:hidden;transition:max-height 0.35s;">Assuming others' thoughts without evidence. Antidote: Ask or test the belief.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function handleCbtForm(form, asText = false) {
+    const data = Object.fromEntries(new FormData(form));
+    const lines = [
+      `Situation: ${data.situation || ''}`,
+      `Emotion: ${data.emotion || ''}`,
+      `Automatic thought: ${data.thought || ''}`,
+      `Evidence for: ${data.evidenceFor || ''}`,
+      `Evidence against: ${data.evidenceAgainst || ''}`,
+      `Alternative thought: ${data.alternative || ''}`
+    ];
+    if (asText) return lines.join('\n');
+    // HTML summary
+    return `<div><strong>CBT Summary</strong><div style="margin-top:8px;color:var(--text-secondary);">${lines.map(l => `<div style="margin-bottom:6px;">${esc(l)}</div>`).join('')}</div></div>`;
   }
 
   function section(title, body) {
