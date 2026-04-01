@@ -170,6 +170,8 @@
         if (window.PsycheApp.Sound) {
           window.PsycheApp.Sound.updateAmbientAtmo(val);
         }
+        // Set data attribute for CSS effects
+        document.getElementById('map-view')?.setAttribute('data-atmosphere', val);
       });
     }
 
@@ -398,6 +400,8 @@
       if (window.PsycheApp.Sound) {
         window.PsycheApp.Sound.updateAmbientAtmo(val);
       }
+      // Update data attribute for CSS
+      document.getElementById('map-view')?.setAttribute('data-atmosphere', val);
     } else {
       if (theme === 'light') {
         App.Sphere3D.setBackground?.(0xFAF8F0);

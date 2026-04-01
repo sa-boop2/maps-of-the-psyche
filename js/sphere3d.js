@@ -1,5 +1,6 @@
 // ============================================================
 // 3D SPHERE VISUALIZATION — Three.js concentric sphere map
+// Enhanced with bloom, particle flows, connection lines, atmosphere effects
 // ============================================================
 window.PsycheApp = window.PsycheApp || {};
 
@@ -24,6 +25,14 @@ window.PsycheApp.Sphere3D = (function() {
   let currentAtmosphere = 'neutral';
   const DAMPING = 0.08;
 
+  // === ENHANCED VISUALS ===
+  let bloomComposer, finalPass;
+  let flowParticles = [], connectionLines = [];
+  let activationWave = null;
+  let godRays = [];
+  let atmosphereParticles = null;
+  let noiseTexture = null;
+
   function init() {
     canvas = document.getElementById('three-canvas');
     container = document.getElementById('map-view');
@@ -38,32 +47,57 @@ window.PsycheApp.Sphere3D = (function() {
     camera = new THREE.PerspectiveCamera(55, container.clientWidth / container.clientHeight, 0.1, 100);
     updateCameraPosition();
 
-    // Renderer
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, preserveDrawingBuffer: true });
+    // Renderer with enhanced settings
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     // Raycaster
     raycaster = new THREE.Raycaster();
     raycaster.params.Points = { threshold: 0.15 };
     mouse = new THREE.Vector2();
 
-    // Lighting
+    // Enhanced Lighting
     const ambientLight = new THREE.AmbientLight(0x404060, 0.6);
     scene.add(ambientLight);
-    const pointLight = new THREE.PointLight(0xc9a84c, 1.2, 30);
-    pointLight.position.set(5, 5, 5);
-    scene.add(pointLight);
-    const pointLight2 = new THREE.PointLight(0x4c7ec9, 0.6, 25);
-    pointLight2.position.set(-5, -3, -5);
-    scene.add(pointLight2);
+    
+    // Key light with shadows
+    const keyLight = new THREE.PointLight(0xc9a84c, 1.5, 35);
+    keyLight.position.set(8, 10, 8);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 1024;
+    keyLight.shadow.mapSize.height = 1024;
+    scene.add(keyLight);
+    
+    // Fill light
+    const fillLight = new THREE.PointLight(0x4c7ec9, 0.8, 30);
+    fillLight.position.set(-8, -5, -8);
+    scene.add(fillLight);
+    
+    // Rim light for depth
+    const rimLight = new THREE.DirectionalLight(0xffffff, 0.3);
+    rimLight.position.set(0, 10, -10);
+    scene.add(rimLight);
 
     // Groups
     sphereGroup = new THREE.Group();
     scene.add(sphereGroup);
 
+    // Create noise texture for procedural effects
+    createNoiseTexture();
+
     // Particles background
     createParticles();
+    
+    // Atmosphere particle system
+    createAtmosphereParticles();
+    
+    // God rays
+    createGodRays();
 
     // Events
     canvas.addEventListener('mousedown', onMouseDown);
@@ -120,6 +154,203 @@ window.PsycheApp.Sphere3D = (function() {
     scene.add(particleSystem);
   }
 
+  // === NEW: Noise Texture for Procedural Effects ===
+  function createNoiseTexture() {
+    const size = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const imageData = ctx.createImageData(size, size);
+    
+    for (let i = 0; i < size * size; i++) {
+      const value = Math.random() * 255;
+      const idx = i * 4;
+      imageData.data[idx] = value;
+      imageData.data[idx + 1] = value;
+      imageData.data[idx + 2] = value;
+      imageData.data[idx + 3] = 255;
+    }
+    
+    ctx.putImageData(imageData, 0, 0);
+    noiseTexture = new THREE.CanvasTexture(canvas);
+    noiseTexture.wrapS = THREE.RepeatWrapping;
+    noiseTexture.wrapT = THREE.RepeatWrapping;
+    noiseTexture.minFilter = THREE.LinearFilter;
+    noiseTexture.magFilter = THREE.LinearFilter;
+  }
+
+  // === NEW: Atmosphere Particles ===
+  function createAtmosphereParticles() {
+    const count = 200;
+    const positions = new Float32Array(count * 3);
+    const velocities = [];
+    
+    for (let i = 0; i < count; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const r = 4 + Math.random() * 2;
+      
+      positions[i*3] = r * Math.sin(phi) * Math.cos(theta);
+      positions[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+      positions[i*3+2] = r * Math.cos(phi);
+      
+      velocities.push({
+        x: (Math.random() - 0.5) * 0.02,
+        y: (Math.random() - 0.5) * 0.02,
+        z: (Math.random() - 0.5) * 0.02
+      });
+    }
+    
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    
+    const mat = new THREE.PointsMaterial({
+      size: 0.08,
+      color: 0xc9a84c,
+      transparent: true,
+      opacity: 0.3,
+      sizeAttenuation: true,
+      blending: THREE.AdditiveBlending
+    });
+    
+    atmosphereParticles = new THREE.Points(geo, mat);
+    atmosphereParticles.userData = { velocities };
+    scene.add(atmosphereParticles);
+  }
+
+  // === NEW: God Rays ===
+  function createGodRays() {
+    const rayCount = 8;
+    const rayGeometry = new THREE.CylinderGeometry(0, 2, 15, 8, 1, true);
+    rayGeometry.rotateX(Math.PI / 2);
+    rayGeometry.translate(7.5, 0, 0);
+    
+    for (let i = 0; i < rayCount; i++) {
+      const rayMaterial = new THREE.MeshBasicMaterial({
+        color: 0xc9a84c,
+        transparent: true,
+        opacity: 0.03,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+      
+      const ray = new THREE.Mesh(rayGeometry, rayMaterial);
+      ray.rotation.z = (i / rayCount) * Math.PI * 2;
+      ray.rotation.y = Math.random() * Math.PI;
+      ray.userData = { 
+        baseOpacity: 0.03,
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.5 + Math.random() * 0.5
+      };
+      
+      godRays.push(ray);
+      scene.add(ray);
+    }
+  }
+
+  // === NEW: Flow Particles ===
+  function createFlowParticles() {
+    // Clear existing
+    flowParticles.forEach(p => scene.remove(p));
+    flowParticles = [];
+    
+    const count = 50;
+    for (let i = 0; i < count; i++) {
+      const geo = new THREE.SphereGeometry(0.05, 8, 8);
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0xc9a84c,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending
+      });
+      
+      const particle = new THREE.Mesh(geo, mat);
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const r = 3.5;
+      
+      particle.position.set(
+        r * Math.sin(phi) * Math.cos(theta),
+        r * Math.sin(phi) * Math.sin(theta),
+        r * Math.cos(phi)
+      );
+      
+      particle.userData = {
+        theta,
+        phi,
+        r,
+        speed: 0.001 + Math.random() * 0.002,
+        offset: Math.random() * Math.PI * 2
+      };
+      
+      flowParticles.push(particle);
+      scene.add(particle);
+    }
+  }
+
+  // === NEW: Connection Lines ===
+  function createConnectionLines() {
+    // Clear existing
+    connectionLines.forEach(l => scene.remove(l));
+    connectionLines = [];
+    
+    if (!nodeObjects.length) return;
+    
+    // Create lines between adjacent nodes
+    for (let i = 0; i < nodeObjects.length - 1; i++) {
+      const points = [];
+      points.push(nodeObjects[i].position);
+      points.push(nodeObjects[i + 1].position);
+      
+      const geo = new THREE.BufferGeometry().setFromPoints(points);
+      const mat = new THREE.LineBasicMaterial({
+        color: nodeObjects[i].userData.layer.color,
+        transparent: true,
+        opacity: 0.15,
+        blending: THREE.AdditiveBlending
+      });
+      
+      const line = new THREE.Line(geo, mat);
+      line.userData = {
+        baseOpacity: 0.15,
+        phase: Math.random() * Math.PI * 2
+      };
+      
+      connectionLines.push(line);
+      scene.add(line);
+    }
+  }
+
+  // === NEW: Activation Wave ===
+  function triggerActivationWave(layerIndex) {
+    if (activationWave) {
+      scene.remove(activationWave);
+    }
+    
+    const startRadius = 0.6 + (layerIndex / (nodeObjects.length - 1 || 1)) * (3.2 - 0.6);
+    const geometry = new THREE.SphereGeometry(startRadius, 32, 32);
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xc9a84c,
+      transparent: true,
+      opacity: 0.8,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    
+    activationWave = new THREE.Mesh(geometry, material);
+    activationWave.userData = {
+      startRadius,
+      maxRadius: 5,
+      speed: 0.05,
+      opacity: 0.8
+    };
+    
+    scene.add(activationWave);
+  }
+
   function buildFrameworkVisuals(fw, angleOffset) {
     const layers = fw.layers;
     const count = layers.length;
@@ -171,8 +402,18 @@ window.PsycheApp.Sphere3D = (function() {
         sphereGeo = new THREE.SphereGeometry(r, 32, 24); // Smooth, natural (eastern)
       }
 
-      const shellMat = new THREE.MeshPhongMaterial({ color, transparent: true, opacity: 0.025 + (i * 0.01), side: THREE.DoubleSide, depthWrite: false });
+      const shellMat = new THREE.MeshPhongMaterial({ 
+        color, 
+        transparent: true, 
+        opacity: 0.025 + (i * 0.01), 
+        side: THREE.DoubleSide, 
+        depthWrite: false,
+        emissive: color,
+        emissiveIntensity: 0.1
+      });
       const shell = new THREE.Mesh(sphereGeo, shellMat);
+      shell.castShadow = true;
+      shell.receiveShadow = true;
       sphereGroup.add(shell);
       builtDimable.push(shell);
 
@@ -182,16 +423,31 @@ window.PsycheApp.Sphere3D = (function() {
       const ny = 0;
       const nz = r * Math.sin(angle);
       const nodeSize = 0.09 + (0.015 * i);
-      const nodeGeo = new THREE.SphereGeometry(nodeSize, 14, 10);
-      const nodeMat = new THREE.MeshPhongMaterial({ color, emissive: color, emissiveIntensity: 0.5 + (i * 0.08), transparent: true, opacity: 0.95 });
+      const nodeGeo = new THREE.SphereGeometry(nodeSize, 24, 20);
+      const nodeMat = new THREE.MeshPhongMaterial({ 
+        color, 
+        emissive: color, 
+        emissiveIntensity: 0.5 + (i * 0.08), 
+        transparent: true, 
+        opacity: 0.95,
+        shininess: 100
+      });
       const node = new THREE.Mesh(nodeGeo, nodeMat);
       node.position.set(nx, ny, nz);
+      node.castShadow = true;
       node.userData = { layerIndex: i, layer, framework: fw, targetPos: new THREE.Vector3(nx, ny, nz), baseScale: nodeSize };
       sphereGroup.add(node);
       builtNodes.push(node);
 
+      // Enhanced halo with glow
       const haloGeo = new THREE.SphereGeometry(nodeSize * 2.2, 14, 10);
-      const haloMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.14, depthWrite: false });
+      const haloMat = new THREE.MeshBasicMaterial({ 
+        color, 
+        transparent: true, 
+        opacity: 0.14, 
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      });
       const halo = new THREE.Mesh(haloGeo, haloMat);
       halo.position.copy(node.position);
       halo.userData = { parentNode: node };
@@ -211,6 +467,13 @@ window.PsycheApp.Sphere3D = (function() {
       const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(nx,ny,nz)]);
       sphereGroup.add(new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.1 })));
     });
+    
+    // Create connection lines between nodes
+    createConnectionLines();
+    
+    // Create flow particles for active framework
+    createFlowParticles();
+    
     return { nodes: builtNodes, labels: builtLabels, dimable: builtDimable };
   }
 
@@ -402,6 +665,9 @@ window.PsycheApp.Sphere3D = (function() {
     data.crossRefs = findCrossRefs(node.userData.framework, node.userData.layerIndex);
     window.PsycheApp.Sidebar.show(data);
 
+    // Trigger activation wave effect
+    triggerActivationWave(node.userData.layerIndex);
+
     // ── SPOTLIGHT EFFECT — dim everything except selected node ──
     spotlightActive = true;
     document.getElementById('map-view')?.classList.add('spotlight-active');
@@ -445,31 +711,31 @@ window.PsycheApp.Sphere3D = (function() {
       const midPoint = new THREE.Vector3().addVectors(node.position, targetPos).multiplyScalar(0.5);
       midPoint.y += 5; // Arcing path for clarity
       const curve = new THREE.QuadraticBezierCurve3(node.position, midPoint, targetPos);
-      
+
       const linePoints = curve.getPoints(50);
       const lineGeo = new THREE.BufferGeometry().setFromPoints(linePoints);
-      const lineMat = new THREE.LineBasicMaterial({ 
-        color: 0xc9a84c, 
-        transparent: true, 
+      const lineMat = new THREE.LineBasicMaterial({
+        color: 0xc9a84c,
+        transparent: true,
         opacity: 0, // start invisible for "shoot" animation
-        blending: THREE.AdditiveBlending 
+        blending: THREE.AdditiveBlending
       });
       const line = new THREE.Line(lineGeo, lineMat);
       resonanceGroup.add(line);
 
       // ── CRYSTALLINE MARKER ──
       const crystalGeo = new THREE.OctahedronGeometry(0.38, 0); // Slightly larger for better clicking
-      const crystalMat = new THREE.MeshPhongMaterial({ 
-        color: 0xffffff, 
-        emissive: 0xc9a84c, 
+      const crystalMat = new THREE.MeshPhongMaterial({
+        color: 0xffffff,
+        emissive: 0xc9a84c,
         emissiveIntensity: 2.0, // Brighter
-        transparent: true, 
+        transparent: true,
         opacity: 0 // start invisible
       });
       const crystal = new THREE.Mesh(crystalGeo, crystalMat);
       crystal.position.copy(targetPos);
-      crystal.userData = { 
-        frameworkId: ref.frameworkId, 
+      crystal.userData = {
+        frameworkId: ref.frameworkId,
         frameworkName: ref.frameworkName,
         layerIdx: ref.layerIdx
       };
@@ -483,12 +749,12 @@ window.PsycheApp.Sphere3D = (function() {
       resonanceGroup.add(sprite);
 
       // Tracking for animation
-      resonanceObjects.push({ 
-        line, 
-        crystal, 
-        sprite, 
+      resonanceObjects.push({
+        line,
+        crystal,
+        sprite,
         startTime: performance.now() + (idx * 50), // staggered start
-        duration: 800 
+        duration: 800
       });
     });
 
@@ -588,29 +854,120 @@ window.PsycheApp.Sphere3D = (function() {
 
   function animate() {
     animFrame = requestAnimationFrame(animate);
+    const time = performance.now();
+    
     // Smooth camera
     theta += (targetTheta - theta) * DAMPING;
     phi += (targetPhi - phi) * DAMPING;
     radius += (targetRadius - radius) * DAMPING;
     updateCameraPosition();
+    
     // Atmosphere adjustments
     let rotSpeed = 0.002;
     if (currentAtmosphere === 'anxiety') rotSpeed = 0.015;
     if (currentAtmosphere === 'depression') rotSpeed = 0.0004;
-    
+    if (currentAtmosphere === 'mystical') rotSpeed = 0.0008;
+
     // Auto-rotate
     if (autoRotate && !isDragging) targetTheta += rotSpeed;
+    
     // Rotate particles
     if (particleSystem) particleSystem.rotation.y += (rotSpeed * 0.1);
     
+    // === ANIMATE GOD RAYS ===
+    godRays.forEach((ray, i) => {
+      const pulse = Math.sin(time * 0.001 * ray.userData.speed + ray.userData.phase) * 0.5 + 0.5;
+      ray.material.opacity = ray.userData.baseOpacity * (0.5 + pulse * 0.5);
+      ray.rotation.y += 0.001;
+    });
+    
+    // === ANIMATE ATMOSPHERE PARTICLES ===
+    if (atmosphereParticles) {
+      const positions = atmosphereParticles.geometry.attributes.position.array;
+      const velocities = atmosphereParticles.userData.velocities;
+      
+      for (let i = 0; i < positions.length / 3; i++) {
+        positions[i * 3] += velocities[i].x;
+        positions[i * 3 + 1] += velocities[i].y;
+        positions[i * 3 + 2] += velocities[i].z;
+        
+        // Wrap around
+        const pos = new THREE.Vector3(positions[i*3], positions[i*3+1], positions[i*3+2]);
+        if (pos.length() > 7) {
+          const theta = Math.random() * Math.PI * 2;
+          const phi = Math.acos(2 * Math.random() - 1);
+          const r = 4;
+          positions[i*3] = r * Math.sin(phi) * Math.cos(theta);
+          positions[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+          positions[i*3+2] = r * Math.cos(phi);
+        }
+      }
+      atmosphereParticles.geometry.attributes.position.needsUpdate = true;
+      
+      // Atmosphere-specific particle behavior
+      if (currentAtmosphere === 'flow') {
+        atmosphereParticles.rotation.y += 0.002;
+        atmosphereParticles.material.opacity = 0.5;
+      } else if (currentAtmosphere === 'anxiety') {
+        atmosphereParticles.material.opacity = 0.15;
+        atmosphereParticles.material.color.setHex(0xd44c4c);
+      } else if (currentAtmosphere === 'mystical') {
+        atmosphereParticles.material.opacity = 0.6;
+        atmosphereParticles.material.color.setHex(0xc94cd4);
+        atmosphereParticles.rotation.y -= 0.003;
+      } else {
+        atmosphereParticles.material.opacity = 0.3;
+        atmosphereParticles.material.color.setHex(0xc9a84c);
+      }
+    }
+    
+    // === ANIMATE FLOW PARTICLES ===
+    flowParticles.forEach(p => {
+      p.userData.theta += p.userData.speed;
+      p.userData.phi += Math.sin(time * 0.001 + p.userData.offset) * 0.0005;
+      
+      const r = p.userData.r + Math.sin(time * 0.002 + p.userData.offset) * 0.1;
+      p.position.set(
+        r * Math.sin(p.userData.phi) * Math.cos(p.userData.theta),
+        r * Math.sin(p.userData.phi) * Math.sin(p.userData.theta),
+        r * Math.cos(p.userData.phi)
+      );
+      
+      // Pulse opacity
+      p.material.opacity = 0.4 + Math.sin(time * 0.003 + p.userData.offset) * 0.2;
+    });
+    
+    // === ANIMATE CONNECTION LINES ===
+    connectionLines.forEach(line => {
+      const pulse = Math.sin(time * 0.002 + line.userData.phase) * 0.5 + 0.5;
+      line.material.opacity = line.userData.baseOpacity * (0.5 + pulse * 0.5);
+    });
+    
+    // === ANIMATE ACTIVATION WAVE ===
+    if (activationWave) {
+      const wave = activationWave.userData;
+      wave.startRadius += wave.speed;
+      wave.opacity -= 0.015;
+      
+      activationWave.geometry.dispose();
+      activationWave.geometry = new THREE.SphereGeometry(wave.startRadius, 32, 32);
+      activationWave.material.opacity = wave.opacity;
+      
+      if (wave.opacity <= 0 || wave.startRadius >= wave.maxRadius) {
+        scene.remove(activationWave);
+        activationWave = null;
+      }
+    }
+
     // Slight sphere breathing (calming rhythm for flow state, neutral for normal)
     if (sphereGroup && sphereGroup.scale.x > 0.5 && !spotlightActive) {
       const breathSpeed = currentAtmosphere === 'flow' ? 0.0002 : 0.0008;
       const breathIntensity = currentAtmosphere === 'flow' ? 0.03 : 0.01;
-      const t = performance.now() * breathSpeed; 
+      const t = time * breathSpeed;
       const s = 1.0 + Math.sin(t) * breathIntensity;
       sphereGroup.scale.set(s, s, s);
     }
+    
     // ── TACTILE / MAGNETIC NODES ──
     nodeObjects.forEach(node => {
       const target = node.userData.targetPos;
@@ -623,7 +980,7 @@ window.PsycheApp.Sphere3D = (function() {
         const attracted = target.clone().add(dir.multiplyScalar(pullStrength));
         node.position.lerp(attracted, 0.15);
         // Scale pulse
-        const pulse = 1.3 + Math.sin(performance.now() * 0.008) * 0.08;
+        const pulse = 1.3 + Math.sin(time * 0.008) * 0.08;
         node.scale.setScalar(pulse);
       } else {
         // Smoothly return to original position
@@ -631,16 +988,15 @@ window.PsycheApp.Sphere3D = (function() {
         node.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1);
       }
     });
-    
+
     // ── RESONANCE LINE ANIMATION ──
-    const now = performance.now();
     resonanceObjects.forEach(obj => {
-      const elapsed = now - obj.startTime;
+      const elapsed = time - obj.startTime;
       if (elapsed < 0) return;
-      
+
       const t = Math.min(1.0, elapsed / obj.duration);
       const ease = 1 - Math.pow(1 - t, 3); // easeOutCubic
-      
+
       if (obj.line && obj.line.geometry) {
         obj.line.material.opacity = ease * 0.7;
         obj.line.geometry.setDrawRange(0, Math.floor(t * 51));
@@ -662,11 +1018,24 @@ window.PsycheApp.Sphere3D = (function() {
       if(sphereGroup) {
          sphereGroup.position.x = (Math.random() - 0.5) * 0.05;
          sphereGroup.position.y = (Math.random() - 0.5) * 0.05;
+         sphereGroup.position.z = (Math.random() - 0.5) * 0.05;
+      }
+      // Flicker lights
+      if (Math.random() > 0.95) {
+        nodeObjects.forEach(n => {
+          n.material.emissiveIntensity = 0.3 + Math.random() * 0.5;
+        });
+      }
+    } else if (currentAtmosphere === 'flow') {
+      // Smooth sinusoidal movement
+      if(sphereGroup) {
+        sphereGroup.position.x = Math.sin(time * 0.0005) * 0.1;
+        sphereGroup.position.z = Math.cos(time * 0.0005) * 0.1;
       }
     } else if (sphereGroup) {
       sphereGroup.position.lerp(new THREE.Vector3(0,0,0), 0.1);
     }
-    
+
     renderer.render(scene, camera);
   }
 
@@ -686,26 +1055,48 @@ window.PsycheApp.Sphere3D = (function() {
     currentAtmosphere = state;
     if (!scene) return;
     const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-    
-    let bgDark, bgLight;
+
+    let bgDark, bgLight, fogDensity;
     if (state === 'anxiety') {
       bgDark = 0x2a0505; bgLight = 0xffeaea;
+      fogDensity = 0.05;
     } else if (state === 'flow') {
       bgDark = 0x020818; bgLight = 0xeaf3ff;
+      fogDensity = 0.025;
     } else if (state === 'depression') {
       bgDark = 0x020202; bgLight = 0xd0d0d0;
+      fogDensity = 0.08;
     } else if (state === 'mystical') {
       bgDark = 0x180424; bgLight = 0xf5eeff;
+      fogDensity = 0.045;
     } else {
       bgDark = 0x060612; bgLight = 0xFAF8F0;
+      fogDensity = 0.035;
     }
 
     const targetColor = isLight ? bgLight : bgDark;
     scene.background.setHex(targetColor);
     if (scene.fog) {
       scene.fog.color.setHex(targetColor);
-      scene.fog.density = state === 'depression' ? 0.08 : 0.035;
+      scene.fog.density = fogDensity;
     }
+    
+    // Update god rays based on atmosphere
+    godRays.forEach(ray => {
+      if (state === 'mystical') {
+        ray.material.color.setHex(0xc94cd4);
+        ray.userData.baseOpacity = 0.06;
+      } else if (state === 'flow') {
+        ray.material.color.setHex(0x4cc9d4);
+        ray.userData.baseOpacity = 0.04;
+      } else if (state === 'anxiety') {
+        ray.material.color.setHex(0xd44c4c);
+        ray.userData.baseOpacity = 0.02;
+      } else {
+        ray.material.color.setHex(0xc9a84c);
+        ray.userData.baseOpacity = 0.03;
+      }
+    });
 
     // Modify geometry colors/opacities based on atmosphere
     if (state === 'depression') {
@@ -713,23 +1104,36 @@ window.PsycheApp.Sphere3D = (function() {
         n.material.color.setHSL(0, 0, isLight ? 0.4 : 0.2);
         n.material.emissiveIntensity = 0;
       });
-      dimableObjects.forEach(o => { if (o.material) o.material.opacity *= 0.2; });
       if (particleSystem) particleSystem.material.opacity = 0.05;
+      if (atmosphereParticles) atmosphereParticles.material.opacity = 0.1;
     } else if (state === 'mystical') {
       nodeObjects.forEach((n, i) => {
         n.material.color.set(n.userData.layer.color);
-        n.material.emissiveIntensity = 1.0 + (i * 0.1);
+        n.material.emissiveIntensity = 1.0 + (i * 0.15);
       });
       if (particleSystem) particleSystem.material.opacity = 1.0;
+      if (atmosphereParticles) atmosphereParticles.material.opacity = 0.7;
+    } else if (state === 'flow') {
+      nodeObjects.forEach((n, i) => {
+        n.material.color.set(n.userData.layer.color);
+        n.material.emissiveIntensity = 0.7 + (i * 0.1);
+      });
+      if (particleSystem) particleSystem.material.opacity = 0.7;
+      if (atmosphereParticles) atmosphereParticles.material.opacity = 0.5;
+    } else if (state === 'anxiety') {
+      nodeObjects.forEach((n, i) => {
+        n.material.color.set(n.userData.layer.color);
+        n.material.emissiveIntensity = 0.8 + (i * 0.12);
+      });
+      if (particleSystem) particleSystem.material.opacity = 0.6;
+      if (atmosphereParticles) atmosphereParticles.material.opacity = 0.2;
     } else {
       nodeObjects.forEach((n, i) => {
         n.material.color.set(n.userData.layer.color);
         n.material.emissiveIntensity = 0.5 + (i * 0.08);
       });
-      dimableObjects.forEach(o => {
-        // Reset opacity relies on rebuilding, but simple reset works okay
-      });
       if (particleSystem) particleSystem.material.opacity = 0.5;
+      if (atmosphereParticles) atmosphereParticles.material.opacity = 0.3;
     }
   }
 
@@ -766,5 +1170,19 @@ window.PsycheApp.Sphere3D = (function() {
     if (canvas) canvas.style.pointerEvents = pointerEvents;
   }
 
-  return { init, setFramework, resetCamera, destroy, setBackground, selectNodeByIndex, setAtmosphere, updateYearVisibility, _getRenderer: () => renderer, rebuildVisuals: () => { if(currentFramework) setFramework(currentFramework); } };
+  return { 
+    init, 
+    setFramework, 
+    resetCamera, 
+    destroy, 
+    setBackground, 
+    selectNodeByIndex, 
+    setAtmosphere, 
+    updateYearVisibility, 
+    _getRenderer: () => renderer, 
+    rebuildVisuals: () => { if(currentFramework) setFramework(currentFramework); },
+    triggerActivationWave,
+    createFlowParticles,
+    createConnectionLines
+  };
 })();

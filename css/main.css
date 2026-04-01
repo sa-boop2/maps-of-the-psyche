@@ -1116,6 +1116,62 @@ a:hover { color: var(--gold-light); }
 
 /* === SPOTLIGHT EFFECT (node focused) === */
 .spotlight-active #map-legend { opacity: 0.3; transition: opacity 0.4s var(--ease); }
+.spotlight-active #map-controls { opacity: 0.4; transition: opacity 0.4s var(--ease); }
+.spotlight-active #timeline-container { opacity: 0.2; transition: opacity 0.4s var(--ease); }
+
+/* === ENHANCED 3D VISUALS === */
+/* Glow effect for canvas */
+#three-canvas {
+  filter: contrast(1.1) saturate(1.1);
+}
+
+/* Smooth transitions for atmosphere changes */
+#map-view {
+  transition: background-color 1.5s ease, filter 0.5s ease;
+}
+
+/* Activation wave pulse effect */
+@keyframes wave-pulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(5); opacity: 0; }
+}
+
+/* Flow state breathing animation */
+@keyframes flow-breathe {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.05); }
+}
+
+[data-atmosphere="flow"] #three-canvas {
+  animation: flow-breathe 4s ease-in-out infinite;
+}
+
+/* Anxiety state jitter */
+@keyframes anxiety-jitter {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(1px, -1px); }
+  50% { transform: translate(-1px, 1px); }
+  75% { transform: translate(1px, 1px); }
+}
+
+[data-atmosphere="anxiety"] #three-canvas {
+  animation: anxiety-jitter 0.3s ease-in-out infinite;
+}
+
+/* Mystical state shimmer */
+@keyframes mystical-shimmer {
+  0%, 100% { filter: hue-rotate(0deg) brightness(1); }
+  50% { filter: hue-rotate(10deg) brightness(1.1); }
+}
+
+[data-atmosphere="mystical"] #three-canvas {
+  animation: mystical-shimmer 3s ease-in-out infinite;
+}
+
+/* Depression state dimming */
+[data-atmosphere="depression"] #three-canvas {
+  filter: grayscale(0.6) brightness(0.7);
+}
 
 /* === SMOOTH TRANSITIONS FOR ALL INTERACTIVE ELEMENTS === */
 button, a, input, select, textarea { transition: all var(--t) var(--ease); }
