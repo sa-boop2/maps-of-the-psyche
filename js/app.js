@@ -38,6 +38,7 @@
     { id: 'darknight', label: 'Dark Night', icon: '☾', group: 'journey' },
     { id: 'relationships', label: 'Relations', icon: '∞', group: 'journey' },
     { id: '_sep3', sep: true },
+    { id: 'cbt', label: 'CBT', icon: '🧠', group: 'tools' },
     { id: 'personal', label: 'My Map', icon: '◎', group: 'you' },
     { id: 'resources', label: 'Library', icon: '⊡', group: 'you' },
   ];
@@ -373,6 +374,7 @@
       case 'disagree': App.ViewsExplore.renderDisagreements(container); break;
       case 'scanner': App.ViewsScanner?.render(container); break;
       case 'ego': App.ViewsEgo?.render(container); break;
+      case 'cbt': App.ViewsCBT?.render(container); break;
       case 'personal': App.ViewsDevelop.renderPersonalMapping(container); break;
       case 'compare': App.ViewsMap.renderCulturalComparison(container); break;
       case 'resources': App.ViewsMap.renderResources(container); break;
