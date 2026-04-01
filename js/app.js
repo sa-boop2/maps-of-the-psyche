@@ -314,16 +314,9 @@
     if (!container) return;
 
     container.addEventListener('wheel', (e) => {
-      // Only control view navigation via vertical scroll on the tabs strip
-      if (e.deltaY === 0) return;
       e.preventDefault();
-      const currentIndex = navigableViews.findIndex(v => v.id === currentView);
-      if (currentIndex === -1) return;
-      const nextIndex = e.deltaY > 0
-        ? (currentIndex + 1) % navigableViews.length
-        : (currentIndex - 1 + navigableViews.length) % navigableViews.length;
-      setView(navigableViews[nextIndex].id);
-      App.Sound?.playUIClick();
+      // Smooth horizontal scroll on both vertical and horizontal wheel
+      container.scrollLeft += e.deltaY || e.deltaX;
     }, { passive: false });
   }
 
@@ -332,12 +325,10 @@
     const container = document.getElementById('framework-tabs');
     if (!container) return;
 
-    // Translate vertical wheel to horizontal scroll for comfortable navigation
     container.addEventListener('wheel', (e) => {
-      // Let horizontal wheel behave naturally
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
       e.preventDefault();
-      container.scrollLeft += e.deltaY;
+      // Translate vertical wheel to horizontal scroll
+      container.scrollLeft += e.deltaY || e.deltaX;
     }, { passive: false });
   }
 

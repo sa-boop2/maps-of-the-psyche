@@ -872,68 +872,18 @@ window.PsycheApp.Sphere3D = (function() {
     // Rotate particles
     if (particleSystem) particleSystem.rotation.y += (rotSpeed * 0.1);
     
-    // === ANIMATE GOD RAYS ===
-    godRays.forEach((ray, i) => {
-      const pulse = Math.sin(time * 0.001 * ray.userData.speed + ray.userData.phase) * 0.5 + 0.5;
-      ray.material.opacity = ray.userData.baseOpacity * (0.5 + pulse * 0.5);
-      ray.rotation.y += 0.001;
-    });
+    // === ANIMATE GOD RAYS === (disabled - bubble effects removed)
+    // godRays.forEach((ray, i) => {
+    //   const pulse = Math.sin(time * 0.001 * ray.userData.speed + ray.userData.phase) * 0.5 + 0.5;
+    //   ray.material.opacity = ray.userData.baseOpacity * (0.5 + pulse * 0.5);
+    //   ray.rotation.y += 0.001;
+    // });
     
-    // === ANIMATE ATMOSPHERE PARTICLES ===
-    if (atmosphereParticles) {
-      const positions = atmosphereParticles.geometry.attributes.position.array;
-      const velocities = atmosphereParticles.userData.velocities;
-      
-      for (let i = 0; i < positions.length / 3; i++) {
-        positions[i * 3] += velocities[i].x;
-        positions[i * 3 + 1] += velocities[i].y;
-        positions[i * 3 + 2] += velocities[i].z;
-        
-        // Wrap around
-        const pos = new THREE.Vector3(positions[i*3], positions[i*3+1], positions[i*3+2]);
-        if (pos.length() > 7) {
-          const theta = Math.random() * Math.PI * 2;
-          const phi = Math.acos(2 * Math.random() - 1);
-          const r = 4;
-          positions[i*3] = r * Math.sin(phi) * Math.cos(theta);
-          positions[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
-          positions[i*3+2] = r * Math.cos(phi);
-        }
-      }
-      atmosphereParticles.geometry.attributes.position.needsUpdate = true;
-      
-      // Atmosphere-specific particle behavior
-      if (currentAtmosphere === 'flow') {
-        atmosphereParticles.rotation.y += 0.002;
-        atmosphereParticles.material.opacity = 0.5;
-      } else if (currentAtmosphere === 'anxiety') {
-        atmosphereParticles.material.opacity = 0.15;
-        atmosphereParticles.material.color.setHex(0xd44c4c);
-      } else if (currentAtmosphere === 'mystical') {
-        atmosphereParticles.material.opacity = 0.6;
-        atmosphereParticles.material.color.setHex(0xc94cd4);
-        atmosphereParticles.rotation.y -= 0.003;
-      } else {
-        atmosphereParticles.material.opacity = 0.3;
-        atmosphereParticles.material.color.setHex(0xc9a84c);
-      }
-    }
+    // === ANIMATE ATMOSPHERE PARTICLES === (disabled - bubble effects removed)
+    // if (atmosphereParticles) { ... }
     
-    // === ANIMATE FLOW PARTICLES ===
-    flowParticles.forEach(p => {
-      p.userData.theta += p.userData.speed;
-      p.userData.phi += Math.sin(time * 0.001 + p.userData.offset) * 0.0005;
-      
-      const r = p.userData.r + Math.sin(time * 0.002 + p.userData.offset) * 0.1;
-      p.position.set(
-        r * Math.sin(p.userData.phi) * Math.cos(p.userData.theta),
-        r * Math.sin(p.userData.phi) * Math.sin(p.userData.theta),
-        r * Math.cos(p.userData.phi)
-      );
-      
-      // Pulse opacity
-      p.material.opacity = 0.4 + Math.sin(time * 0.003 + p.userData.offset) * 0.2;
-    });
+    // === ANIMATE FLOW PARTICLES === (disabled - bubble effects removed)
+    // flowParticles.forEach(p => { ... });
     
     // === ANIMATE CONNECTION LINES ===
     connectionLines.forEach(line => {

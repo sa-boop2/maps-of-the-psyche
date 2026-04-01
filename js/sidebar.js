@@ -86,8 +86,13 @@ window.PsycheApp.Sidebar = (function() {
     contentEl.querySelectorAll('.cbt-distortion-toggle').forEach(btn => {
       btn.addEventListener('click', () => {
         const target = btn.nextElementSibling;
-        if (target) target.classList.toggle('open');
-        btn.classList.toggle('expanded');
+        if (target) {
+          if (btn.classList.toggle('expanded')) {
+            target.style.maxHeight = target.scrollHeight + 'px';
+          } else {
+            target.style.maxHeight = '0';
+          }
+        }
       });
     });
 
@@ -152,10 +157,6 @@ window.PsycheApp.Sidebar = (function() {
     html += cbtSection();
 
     return html;
-  }
-
-  function section(title, body) {
-    return `<div class="sb-section"><div class="sb-section-header">${esc(title)}</div><div class="sb-section-body">${body}</div></div>`;
   }
 
   // --- CBT Toolkit HTML ---
@@ -226,19 +227,11 @@ window.PsycheApp.Sidebar = (function() {
       `Alternative thought: ${data.alternative || ''}`
     ];
     if (asText) return lines.join('\n');
-    // HTML summary
     return `<div><strong>CBT Summary</strong><div style="margin-top:8px;color:var(--text-secondary);">${lines.map(l => `<div style="margin-bottom:6px;">${esc(l)}</div>`).join('')}</div></div>`;
   }
 
   function section(title, body) {
     return `<div class="sb-section"><div class="sb-section-header">${esc(title)}</div><div class="sb-section-body">${body}</div></div>`;
-  }
-
-  function esc(str) {
-    if (!str) return '';
-    const d = document.createElement('div');
-    d.textContent = str;
-    return d.innerHTML;
   }
 
   return { init, show, hide, get isOpen() { return isOpen; } };
