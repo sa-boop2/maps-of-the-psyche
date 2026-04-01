@@ -871,19 +871,11 @@ window.PsycheApp.Sphere3D = (function() {
     
     // Rotate particles
     if (particleSystem) particleSystem.rotation.y += (rotSpeed * 0.1);
-    
     // === ANIMATE GOD RAYS === (disabled - bubble effects removed)
-    // godRays.forEach((ray, i) => {
-    //   const pulse = Math.sin(time * 0.001 * ray.userData.speed + ray.userData.phase) * 0.5 + 0.5;
-    //   ray.material.opacity = ray.userData.baseOpacity * (0.5 + pulse * 0.5);
-    //   ray.rotation.y += 0.001;
-    // });
-    
-    // === ANIMATE ATMOSPHERE PARTICLES === (disabled - bubble effects removed)
-    // if (atmosphereParticles) { ... }
+    // godRays and atmosphereParticles are not created
     
     // === ANIMATE FLOW PARTICLES === (disabled - bubble effects removed)
-    // flowParticles.forEach(p => { ... });
+    // flowParticles array is kept empty
     
     // === ANIMATE CONNECTION LINES ===
     connectionLines.forEach(line => {

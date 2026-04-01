@@ -153,13 +153,14 @@ a:hover { color: var(--gold-light); }
   display: flex;
   align-items: center;
   gap: 2px;
-  overflow-x: auto;
+  overflow-x: scroll;
   overflow-y: hidden;
   scrollbar-width: none;
   flex: 1;
   min-width: 0;
   padding: 0 4px;
   -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
 }
 .view-pill-group::-webkit-scrollbar { display: none; }
 
@@ -265,11 +266,12 @@ a:hover { color: var(--gold-light); }
 /* Framework tab scroll */
 .fw-scroll {
   display: flex; gap: 3px;
-  overflow-x: auto; overflow-y: hidden;
+  overflow-x: scroll; overflow-y: hidden;
   scrollbar-width: none;
   flex: 1; min-width: 0;
   padding: 2px 4px;
   -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
 }
 .fw-scroll::-webkit-scrollbar { display: none; }
 

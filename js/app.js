@@ -310,25 +310,23 @@
   }
 
   function bindViewTabsMouseWheel() {
-    const container = document.getElementById('view-tabs');
+    const container = document.querySelector('.view-pill-group');
     if (!container) return;
 
     container.addEventListener('wheel', (e) => {
       e.preventDefault();
-      // Smooth horizontal scroll on both vertical and horizontal wheel
-      container.scrollLeft += e.deltaY || e.deltaX;
+      container.scrollLeft += (e.deltaY || e.deltaX) * 0.5;
     }, { passive: false });
   }
 
   // ── FRAMEWORK TABS HORIZONTAL SCROLL WITH MOUSE WHEEL ──
   function bindFrameworkTabsMouseWheel() {
-    const container = document.getElementById('framework-tabs');
+    const container = document.querySelector('.fw-scroll');
     if (!container) return;
 
     container.addEventListener('wheel', (e) => {
       e.preventDefault();
-      // Translate vertical wheel to horizontal scroll
-      container.scrollLeft += e.deltaY || e.deltaX;
+      container.scrollLeft += (e.deltaY || e.deltaX) * 0.5;
     }, { passive: false });
   }
 

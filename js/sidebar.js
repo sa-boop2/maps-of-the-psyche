@@ -198,16 +198,16 @@ window.PsycheApp.Sidebar = (function() {
             <div style="font-weight:600;color:var(--gold);font-size:0.78rem;margin-bottom:6px;">Common Cognitive Distortions</div>
             <div style="display:flex;flex-direction:column;gap:8px;">
               <div>
-                <button class="cbt-distortion-toggle" style="background:transparent;border:1px solid var(--border);padding:8px;border-radius:8px;width:100%;text-align:left;cursor:pointer;">All-or-Nothing Thinking</button>
-                <div class="cbt-distortion-body" style="max-height:0;overflow:hidden;transition:max-height 0.35s;">Seeing things in black-or-white terms. Example: "If I'm not perfect, I'm a failure." Antidote: Look for the middle ground.</div>
+                <button class="cbt-distortion-toggle" style="background:transparent;border:1px solid var(--border);padding:8px;border-radius:8px;width:100%;text-align:left;cursor:pointer;font-size:0.78rem;color:var(--text);transition:color 0.2s;">All-or-Nothing Thinking</button>
+                <div class="cbt-distortion-body" style="max-height:0;overflow:hidden;transition:max-height 0.35s;padding:0 8px;font-size:0.75rem;color:var(--text-secondary);">Seeing things in black-or-white terms. Example: "If I'm not perfect, I'm a failure." Antidote: Look for the middle ground.</div>
               </div>
               <div>
-                <button class="cbt-distortion-toggle" style="background:transparent;border:1px solid var(--border);padding:8px;border-radius:8px;width:100%;text-align:left;cursor:pointer;">Catastrophizing</button>
-                <div class="cbt-distortion-body" style="max-height:0;overflow:hidden;transition:max-height 0.35s;">Expecting the worst-case scenario. Example: "I'll never recover." Antidote: "What's the realistic outcome?"</div>
+                <button class="cbt-distortion-toggle" style="background:transparent;border:1px solid var(--border);padding:8px;border-radius:8px;width:100%;text-align:left;cursor:pointer;font-size:0.78rem;color:var(--text);transition:color 0.2s;">Catastrophizing</button>
+                <div class="cbt-distortion-body" style="max-height:0;overflow:hidden;transition:max-height 0.35s;padding:0 8px;font-size:0.75rem;color:var(--text-secondary);">Expecting the worst-case scenario. Example: "I'll never recover." Antidote: "What's the realistic outcome?"</div>
               </div>
               <div>
-                <button class="cbt-distortion-toggle" style="background:transparent;border:1px solid var(--border);padding:8px;border-radius:8px;width:100%;text-align:left;cursor:pointer;">Mind Reading</button>
-                <div class="cbt-distortion-body" style="max-height:0;overflow:hidden;transition:max-height 0.35s;">Assuming others' thoughts without evidence. Antidote: Ask or test the belief.</div>
+                <button class="cbt-distortion-toggle" style="background:transparent;border:1px solid var(--border);padding:8px;border-radius:8px;width:100%;text-align:left;cursor:pointer;font-size:0.78rem;color:var(--text);transition:color 0.2s;">Mind Reading</button>
+                <div class="cbt-distortion-body" style="max-height:0;overflow:hidden;transition:max-height 0.35s;padding:0 8px;font-size:0.75rem;color:var(--text-secondary);">Assuming others' thoughts without evidence. Antidote: Ask or test the belief.</div>
               </div>
             </div>
           </div>
@@ -232,6 +232,13 @@ window.PsycheApp.Sidebar = (function() {
 
   function section(title, body) {
     return `<div class="sb-section"><div class="sb-section-header">${esc(title)}</div><div class="sb-section-body">${body}</div></div>`;
+  }
+
+  function esc(str) {
+    if (!str) return '';
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
   }
 
   return { init, show, hide, get isOpen() { return isOpen; } };
