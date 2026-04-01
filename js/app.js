@@ -64,6 +64,7 @@
 
     buildFrameworkTabs();
     buildViewTabs();
+    bindViewTabsMouseWheel();
     bindTraditionFilter();
     bindMapModeToggle();
     bindUtilityButtons();
@@ -306,7 +307,25 @@
       btn.addEventListener('click', () => { setView(btn.dataset.view); App.Sound?.playUIClick(); });
     });
   }
-  
+
+  function bindViewTabsMouseWheel() {
+    const container = document.getElementById('view-tabs');
+    if (!container) return;
+
+    container.addEventListener('wheel', (e) => {
+      // Only control view navigation via vertical scroll on the tabs strip
+      if (e.deltaY === 0) return;
+      e.preventDefault();
+      const currentIndex = navigableViews.findIndex(v => v.id === currentView);
+      if (currentIndex === -1) return;
+      const nextIndex = e.deltaY > 0
+        ? (currentIndex + 1) % navigableViews.length
+        : (currentIndex - 1 + navigableViews.length) % navigableViews.length;
+      setView(navigableViews[nextIndex].id);
+      App.Sound?.playUIClick();
+    }, { passive: false });
+  }
+
   function bindLogoClick() {
     const brand = document.querySelector('.nav-brand');
     if (brand) {
